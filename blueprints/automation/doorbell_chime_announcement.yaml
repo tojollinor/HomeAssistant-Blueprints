@@ -141,9 +141,18 @@ blueprint:
             text:
               multiline: false
 
+        send_tts_language:
+          name: Sprache an TTS übergeben
+          description: >
+            Wenn deaktiviert, wird kein language-Parameter an die TTS-Engine gesendet.
+            Das ist für Engines sinnvoll, die ihre Sprache selbst konfigurieren.
+          default: false
+          selector:
+            boolean:
+
         tts_language:
           name: TTS-Sprache
-          description: Für Google Translate TTS z. B. "de".
+          description: Wird nur verwendet, wenn "Sprache an TTS übergeben" aktiviert ist, z. B. "de".
           default: "de"
           selector:
             text:
@@ -247,6 +256,7 @@ variables:
   enable_speech: !input enable_speech
   tts_entity: !input tts_entity
   announcement_text: !input announcement_text
+  send_tts_language: !input send_tts_language
   tts_language: !input tts_language
   adjust_speech_volume: !input adjust_speech_volume
   speech_volume: !input speech_volume
@@ -314,6 +324,7 @@ actions:
                     value_template: "{{ (enable_gong | bool) and (adjust_gong_volume | bool) }}"
                 then:
                   - action: media_player.volume_set
+                    continue_on_error: true
                     target:
                       entity_id: !input google_media_players
                     data:
@@ -326,6 +337,7 @@ actions:
                     value_template: "{{ enable_gong | bool }}"
                 then:
                   - action: media_player.play_media
+                    continue_on_error: true
                     target:
                       entity_id: !input google_media_players
                     data:
@@ -339,6 +351,7 @@ actions:
                     value_template: "{{ (enable_speech | bool) and (adjust_speech_volume | bool) }}"
                 then:
                   - action: media_player.volume_set
+                    continue_on_error: true
                     target:
                       entity_id: !input google_media_players
                     data:
@@ -353,13 +366,26 @@ actions:
                   - repeat:
                       for_each: "{{ google_media_players }}"
                       sequence:
-                        - action: tts.speak
-                          target:
-                            entity_id: "{{ tts_entity }}"
-                          data:
-                            media_player_entity_id: "{{ repeat.item }}"
-                            message: "{{ announcement_text }}"
-                            language: "{{ tts_language }}"
+                        - if:
+                            - condition: template
+                              value_template: "{{ send_tts_language | bool }}"
+                          then:
+                            - action: tts.speak
+                              continue_on_error: true
+                              target:
+                                entity_id: "{{ tts_entity }}"
+                              data:
+                                media_player_entity_id: "{{ repeat.item }}"
+                                message: "{{ announcement_text }}"
+                                language: "{{ tts_language }}"
+                          else:
+                            - action: tts.speak
+                              continue_on_error: true
+                              target:
+                                entity_id: "{{ tts_entity }}"
+                              data:
+                                media_player_entity_id: "{{ repeat.item }}"
+                                message: "{{ announcement_text }}"
 
               - if:
                   - condition: template
@@ -369,6 +395,7 @@ actions:
                       for_each: "{{ google_media_players }}"
                       sequence:
                         - action: camera.play_stream
+                          continue_on_error: true
                           target:
                             entity_id: "{{ camera_entities[0] }}"
                           data:
@@ -384,6 +411,7 @@ actions:
                     value_template: "{{ (enable_gong | bool) and (adjust_gong_volume | bool) }}"
                 then:
                   - action: media_player.volume_set
+                    continue_on_error: true
                     target:
                       entity_id: !input alexa_media_players
                     data:
@@ -396,6 +424,7 @@ actions:
                     value_template: "{{ enable_gong | bool }}"
                 then:
                   - action: notify.alexa_media
+                    continue_on_error: true
                     data:
                       target: !input alexa_media_players
                       message: >-
@@ -411,6 +440,7 @@ actions:
                     value_template: "{{ (enable_speech | bool) and (adjust_speech_volume | bool) }}"
                 then:
                   - action: media_player.volume_set
+                    continue_on_error: true
                     target:
                       entity_id: !input alexa_media_players
                     data:
@@ -423,6 +453,7 @@ actions:
                     value_template: "{{ enable_speech | bool }}"
                 then:
                   - action: notify.alexa_media
+                    continue_on_error: true
                     data:
                       target: !input alexa_media_players
                       message: "{{ announcement_text }}"
@@ -440,6 +471,7 @@ actions:
                     value_template: "{{ (enable_gong | bool) and (adjust_gong_volume | bool) }}"
                 then:
                   - action: media_player.volume_set
+                    continue_on_error: true
                     target:
                       entity_id: "{{ effective_other_players }}"
                     data:
@@ -452,6 +484,7 @@ actions:
                     value_template: "{{ enable_gong | bool }}"
                 then:
                   - action: media_player.play_media
+                    continue_on_error: true
                     target:
                       entity_id: "{{ effective_other_players }}"
                     data:
@@ -465,6 +498,7 @@ actions:
                     value_template: "{{ (enable_speech | bool) and (adjust_speech_volume | bool) }}"
                 then:
                   - action: media_player.volume_set
+                    continue_on_error: true
                     target:
                       entity_id: "{{ effective_other_players }}"
                     data:
@@ -479,13 +513,26 @@ actions:
                   - repeat:
                       for_each: "{{ effective_other_players }}"
                       sequence:
-                        - action: tts.speak
-                          target:
-                            entity_id: "{{ tts_entity }}"
-                          data:
-                            media_player_entity_id: "{{ repeat.item }}"
-                            message: "{{ announcement_text }}"
-                            language: "{{ tts_language }}"
+                        - if:
+                            - condition: template
+                              value_template: "{{ send_tts_language | bool }}"
+                          then:
+                            - action: tts.speak
+                              continue_on_error: true
+                              target:
+                                entity_id: "{{ tts_entity }}"
+                              data:
+                                media_player_entity_id: "{{ repeat.item }}"
+                                message: "{{ announcement_text }}"
+                                language: "{{ tts_language }}"
+                          else:
+                            - action: tts.speak
+                              continue_on_error: true
+                              target:
+                                entity_id: "{{ tts_entity }}"
+                              data:
+                                media_player_entity_id: "{{ repeat.item }}"
+                                message: "{{ announcement_text }}"
 
   - delay:
       seconds: >
@@ -507,6 +554,7 @@ actions:
                   value_template: "{{ repeat.item[1] | float(-1) >= 0 }}"
               then:
                 - action: media_player.volume_set
+                  continue_on_error: true
                   target:
                     entity_id: "{{ repeat.item[0] }}"
                   data:
@@ -520,6 +568,7 @@ actions:
         value_template: "{{ (google_media_players | count > 0) and (close_google_cast | bool) }}"
     then:
       - action: media_player.turn_off
+        continue_on_error: true
         target:
           entity_id: !input google_media_players
 
