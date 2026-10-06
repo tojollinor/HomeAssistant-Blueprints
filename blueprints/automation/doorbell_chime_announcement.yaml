@@ -157,6 +157,20 @@ blueprint:
           selector:
             text:
 
+        tts_wait:
+          name: Wartezeit nach der Ansage
+          description: >
+            Zeit nach dem Start der TTS-Ausgabe, bevor die nächste Funktion ausgeführt wird.
+            Bei Google/Nest startet danach gegebenenfalls der Kamerastream.
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 60
+              step: 0.5
+              unit_of_measurement: s
+              mode: slider
+
         adjust_speech_volume:
           name: Ansage-Lautstärke anpassen
           description: Wenn deaktiviert, bleibt die aktuelle Lautstärke der Zielgeräte unverändert.
@@ -258,6 +272,7 @@ variables:
   announcement_text: !input announcement_text
   send_tts_language: !input send_tts_language
   tts_language: !input tts_language
+  tts_wait: !input tts_wait
   adjust_speech_volume: !input adjust_speech_volume
   speech_volume: !input speech_volume
   enable_camera: !input enable_camera
@@ -387,6 +402,9 @@ actions:
                                 media_player_entity_id: "{{ repeat.item }}"
                                 message: "{{ announcement_text }}"
 
+                  - delay:
+                      seconds: "{{ tts_wait | float(5) }}"
+
               - if:
                   - condition: template
                     value_template: "{{ camera_active | bool }}"
@@ -461,6 +479,9 @@ actions:
                         type: announce
                         method: all
 
+                  - delay:
+                      seconds: "{{ tts_wait | float(5) }}"
+
       - sequence:
           - if:
               - condition: template
@@ -533,6 +554,9 @@ actions:
                               data:
                                 media_player_entity_id: "{{ repeat.item }}"
                                 message: "{{ announcement_text }}"
+
+                  - delay:
+                      seconds: "{{ tts_wait | float(5) }}"
 
   - delay:
       seconds: >
