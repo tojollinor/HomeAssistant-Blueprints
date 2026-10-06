@@ -32,7 +32,9 @@ Funktionen:
 - **Vorherige Lautstärke wiederherstellen** bleibt als eigener Schalter im Abschnitt Abschluss
 - optionaler Live-Kamerastream auf Google/Nest Hubs über `camera.play_stream`
 - Kamera und Kamera-Anzeigedauer frei auswählbar
-- Google-Cast-Session kann anschließend automatisch beendet werden
+- ohne Kamera geht es nach der TTS-Wartezeit direkt zum Abschluss
+- mit Kamera beginnt danach der Stream und läuft für die eingestellte Kamera-Anzeigedauer
+- Google-Cast-Wiedergabe kann anschließend per `media_player.media_stop` automatisch beendet werden
 - relevante Service-Aufrufe sind fehlertolerant: ein Fehler bei Gong, TTS, Kamera, Lautstärke oder Cast-Cleanup soll den restlichen Ablauf nicht abbrechen
 - Wartezeiten und Lautstärken über die Blueprint-GUI einstellbar
 
