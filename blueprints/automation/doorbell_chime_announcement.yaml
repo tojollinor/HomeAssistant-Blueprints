@@ -1,0 +1,330 @@
+blueprint:
+  name: "Türklingel – Gong & Ansage auf Google/Nest oder Alexa"
+  description: >
+    Spielt bei einem Klingeldruck optional einen Gong und/oder eine Sprachausgabe
+    auf mehreren Lautsprechern/Displays ab. Die Ausgabelautstärke wird nur für
+    die Klingelaktion gesetzt und anschließend auf den vorherigen Wert
+    zurückgestellt. Google/Nest ist getestet; Amazon Alexa ist als Beta
+    vorbereitet und benötigt Alexa Media Player.
+  domain: automation
+  author: tojollinor
+  source_url: https://github.com/tojollinor/HomeAssistant-Blueprints/blob/main/blueprints/automation/doorbell_chime_announcement.yaml
+  homeassistant:
+    min_version: 2024.6.0
+
+  input:
+    basic:
+      name: "Auslöser & Ausgabegeräte"
+      icon: mdi:doorbell-video
+      input:
+        doorbell_sensor:
+          name: Klingelsensor
+          description: Binary Sensor, der beim Klingeldruck auf "on" wechselt.
+          selector:
+            entity:
+              filter:
+                - domain: binary_sensor
+
+        output_system:
+          name: Ausgabesystem
+          description: Google/Nest ist getestet. Alexa ist vorbereitet, aber noch ungetestet.
+          default: google
+          selector:
+            select:
+              options:
+                - label: "Google / Nest Hub (getestet)"
+                  value: google
+                - label: "Amazon Alexa (Beta, ungetestet)"
+                  value: alexa
+
+        media_players:
+          name: Lautsprecher / Displays
+          description: Ein oder mehrere Media-Player für Gong und Ansage.
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: media_player
+
+    gong:
+      name: Gong
+      icon: mdi:bell-ring
+      input:
+        enable_gong:
+          name: Gong abspielen
+          default: true
+          selector:
+            boolean:
+
+        gong_volume:
+          name: Gong-Lautstärke
+          description: Nur während des Gongs. Danach wird die vorherige Lautstärke wiederhergestellt.
+          default: 60
+          selector:
+            number:
+              min: 10
+              max: 100
+              step: 5
+              unit_of_measurement: "%"
+              mode: slider
+
+        gong_wait:
+          name: Pause nach dem Gong
+          description: Zeit bis zur Sprachausgabe. Bei langen oder eigenen Gong-Dateien entsprechend erhöhen.
+          default: 2.5
+          selector:
+            number:
+              min: 0
+              max: 15
+              step: 0.5
+              unit_of_measurement: s
+              mode: slider
+
+        google_gong_url:
+          name: Google/Nest Gong-URL
+          description: HTTPS-Adresse der Audiodatei. Kann durch eine eigene Datei ersetzt werden.
+          default: "https://raw.githubusercontent.com/tojollinor/HomeAssistant-Blueprints/main/assets/doorbell_chime.wav"
+          selector:
+            text:
+
+    speech:
+      name: Sprachausgabe
+      icon: mdi:account-voice
+      input:
+        enable_speech:
+          name: Sprachausgabe verwenden
+          default: true
+          selector:
+            boolean:
+
+        tts_entity:
+          name: TTS-Engine für Google/Nest
+          description: Wird nur bei Google/Nest verwendet, z. B. Google Translate TTS.
+          selector:
+            entity:
+              filter:
+                - domain: tts
+
+        announcement_text:
+          name: Ansagetext
+          default: "Jemand ist an der Hintertür."
+          selector:
+            text:
+              multiline: false
+
+        tts_language:
+          name: TTS-Sprache für Google/Nest
+          description: Für Google Translate TTS z. B. "de".
+          default: "de"
+          selector:
+            text:
+
+        speech_volume:
+          name: Ansage-Lautstärke
+          description: Nur während der Sprachausgabe.
+          default: 60
+          selector:
+            number:
+              min: 10
+              max: 100
+              step: 5
+              unit_of_measurement: "%"
+              mode: slider
+
+    cleanup:
+      name: Abschluss
+      icon: mdi:restore
+      input:
+        final_wait:
+          name: Wartezeit vor dem Wiederherstellen
+          description: Zeit nach der Ansage, bevor Lautstärke und Cast-Session zurückgesetzt werden.
+          default: 7
+          selector:
+            number:
+              min: 0
+              max: 30
+              step: 1
+              unit_of_measurement: s
+              mode: slider
+
+        restore_volume:
+          name: Vorherige Lautstärke wiederherstellen
+          default: true
+          selector:
+            boolean:
+
+        close_google_cast:
+          name: Google-Cast-Session schließen
+          description: Wird nur im Google/Nest-Modus ausgeführt.
+          default: true
+          selector:
+            boolean:
+
+variables:
+  output_system: !input output_system
+  target_players: !input media_players
+  enable_gong: !input enable_gong
+  gong_volume: !input gong_volume
+  gong_wait: !input gong_wait
+  google_gong_url: !input google_gong_url
+  enable_speech: !input enable_speech
+  tts_entity: !input tts_entity
+  announcement_text: !input announcement_text
+  tts_language: !input tts_language
+  speech_volume: !input speech_volume
+  final_wait: !input final_wait
+  restore_volume: !input restore_volume
+  close_google_cast: !input close_google_cast
+  previous_volumes: >
+    {% set ns = namespace(items=[]) %}
+    {% for player in target_players %}
+      {% set volume = state_attr(player, 'volume_level') %}
+      {% set ns.items = ns.items + [[player, volume if volume is number else -1]] %}
+    {% endfor %}
+    {{ ns.items | to_json }}
+
+triggers:
+  - trigger: state
+    entity_id: !input doorbell_sensor
+    from: "off"
+    to: "on"
+
+conditions: []
+
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ output_system == 'google' }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ enable_gong | bool }}"
+            then:
+              - action: media_player.volume_set
+                target:
+                  entity_id: !input media_players
+                data:
+                  volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+
+              - delay:
+                  milliseconds: 300
+
+              - action: media_player.play_media
+                target:
+                  entity_id: !input media_players
+                data:
+                  media_content_id: "{{ google_gong_url }}"
+                  media_content_type: "audio/wav"
+
+              - delay:
+                  seconds: "{{ gong_wait | float(2.5) }}"
+
+          - if:
+              - condition: template
+                value_template: "{{ enable_speech | bool }}"
+            then:
+              - action: media_player.volume_set
+                target:
+                  entity_id: !input media_players
+                data:
+                  volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
+
+              - delay:
+                  milliseconds: 300
+
+              - repeat:
+                  for_each: "{{ target_players }}"
+                  sequence:
+                    - action: tts.speak
+                      target:
+                        entity_id: "{{ tts_entity }}"
+                      data:
+                        media_player_entity_id: "{{ repeat.item }}"
+                        message: "{{ announcement_text }}"
+                        language: "{{ tts_language }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ output_system == 'alexa' }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ enable_gong | bool }}"
+            then:
+              - action: media_player.volume_set
+                target:
+                  entity_id: !input media_players
+                data:
+                  volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+
+              - delay:
+                  milliseconds: 300
+
+              - action: notify.alexa_media
+                data:
+                  target: "{{ target_players }}"
+                  message: >-
+                    <speak><audio src="soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01"/></speak>
+                  data:
+                    type: announce
+                    method: all
+
+              - delay:
+                  seconds: "{{ gong_wait | float(2.5) }}"
+
+          - if:
+              - condition: template
+                value_template: "{{ enable_speech | bool }}"
+            then:
+              - action: media_player.volume_set
+                target:
+                  entity_id: !input media_players
+                data:
+                  volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
+
+              - delay:
+                  milliseconds: 300
+
+              - action: notify.alexa_media
+                data:
+                  target: "{{ target_players }}"
+                  message: "{{ announcement_text }}"
+                  data:
+                    type: announce
+                    method: all
+
+  - delay:
+      seconds: "{{ final_wait | float(7) }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ restore_volume | bool }}"
+    then:
+      - repeat:
+          for_each: "{{ previous_volumes | from_json }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ repeat.item[1] | float(-1) >= 0 }}"
+              then:
+                - action: media_player.volume_set
+                  target:
+                    entity_id: "{{ repeat.item[0] }}"
+                  data:
+                    volume_level: "{{ repeat.item[1] | float }}"
+
+  - delay:
+      milliseconds: 500
+
+  - if:
+      - condition: template
+        value_template: "{{ output_system == 'google' and (close_google_cast | bool) }}"
+    then:
+      - action: media_player.turn_off
+        target:
+          entity_id: !input media_players
+
+mode: queued
+max: 3
+max_exceeded: silent
