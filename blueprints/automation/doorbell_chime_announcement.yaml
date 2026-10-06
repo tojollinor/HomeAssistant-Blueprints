@@ -229,19 +229,6 @@ blueprint:
       name: Abschluss
       icon: mdi:restore
       input:
-        final_wait:
-          name: Wartezeit ohne Kamerastream
-          description: >
-            Zeit nach Gong/Ansage bis zum Abschluss, wenn kein Google-Kamerastream läuft.
-          default: 7
-          selector:
-            number:
-              min: 0
-              max: 30
-              step: 1
-              unit_of_measurement: s
-              mode: slider
-
         restore_volume:
           name: Vorherige Lautstärke wiederherstellen
           description: >
@@ -278,7 +265,6 @@ variables:
   enable_camera: !input enable_camera
   camera_entities: !input camera_entities
   camera_duration: !input camera_duration
-  final_wait: !input final_wait
   restore_volume: !input restore_volume
   close_google_cast: !input close_google_cast
 
@@ -419,6 +405,9 @@ actions:
                           data:
                             media_player: "{{ repeat.item }}"
 
+                  - delay:
+                      seconds: "{{ camera_duration | float(30) }}"
+
       - sequence:
           - if:
               - condition: template
@@ -558,14 +547,6 @@ actions:
                   - delay:
                       seconds: "{{ tts_wait | float(5) }}"
 
-  - delay:
-      seconds: >
-        {% if camera_active | bool %}
-          {{ camera_duration | float(30) }}
-        {% else %}
-          {{ final_wait | float(7) }}
-        {% endif %}
-
   - if:
       - condition: template
         value_template: "{{ (restore_volume | bool) and (volume_was_adjusted | bool) }}"
@@ -591,7 +572,7 @@ actions:
       - condition: template
         value_template: "{{ (google_media_players | count > 0) and (close_google_cast | bool) }}"
     then:
-      - action: media_player.turn_off
+      - action: media_player.media_stop
         continue_on_error: true
         target:
           entity_id: !input google_media_players
