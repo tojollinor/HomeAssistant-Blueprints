@@ -14,7 +14,7 @@ blueprint:
 
   input:
     basic:
-      name: "Auslöser & Ausgabesystem"
+      name: "Auslöser"
       icon: mdi:doorbell-video
       input:
         doorbell_sensor:
@@ -25,24 +25,12 @@ blueprint:
               filter:
                 - domain: binary_sensor
 
-        output_system:
-          name: Ausgabesystem
-          default: google
-          selector:
-            select:
-              options:
-                - label: "Google / Nest Hub"
-                  value: google
-                - label: "Amazon Alexa (Beta)"
-                  value: alexa
-                - label: "Andere Lautsprecher (Beta)"
-                  value: other
-
     players:
       name: "Lautsprecher / Displays"
       icon: mdi:speaker-multiple
       description: >
-        Nur das Feld passend zum oben gewählten Ausgabesystem muss befüllt werden.
+        Alle gewünschten Zielgruppen können gleichzeitig befüllt werden.
+        Leere Gruppen werden einfach übersprungen.
       input:
         google_media_players:
           name: Google / Nest Hub
@@ -169,7 +157,7 @@ blueprint:
       icon: mdi:cctv
       description: >
         Optionaler Live-Stream nach Gong und Ansage. Die Kameraausgabe wird derzeit
-        nur im Modus Google / Nest Hub verwendet.
+        nur für ausgewählte Google / Nest Hubs verwendet.
       input:
         enable_camera:
           name: Kamerabild anzeigen
@@ -224,13 +212,12 @@ blueprint:
 
         close_google_cast:
           name: Google-Cast-Session schließen
-          description: Wird nur im Modus Google / Nest Hub ausgeführt.
+          description: Wird nur für ausgewählte Google / Nest Hubs ausgeführt.
           default: true
           selector:
             boolean:
 
 variables:
-  output_system: !input output_system
   google_media_players: !input google_media_players
   alexa_media_players: !input alexa_media_players
   other_media_players: !input other_media_players
@@ -249,18 +236,26 @@ variables:
   final_wait: !input final_wait
   restore_volume: !input restore_volume
   close_google_cast: !input close_google_cast
+  effective_other_players: >
+    {% set ns = namespace(items=[]) %}
+    {% for player in other_media_players %}
+      {% if player not in google_media_players and player not in alexa_media_players %}
+        {% set ns.items = ns.items + [player] %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.items }}
   target_players: >
-    {% if output_system == 'google' %}
-      {{ google_media_players }}
-    {% elif output_system == 'alexa' %}
-      {{ alexa_media_players }}
-    {% else %}
-      {{ other_media_players }}
-    {% endif %}
+    {% set ns = namespace(items=[]) %}
+    {% for player in google_media_players + alexa_media_players + other_media_players %}
+      {% if player not in ns.items %}
+        {% set ns.items = ns.items + [player] %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.items }}
   camera_active: >
-    {{ output_system == 'google'
-       and (enable_camera | bool)
-       and (camera_entities | count > 0) }}
+    {{ (enable_camera | bool)
+       and (camera_entities | count > 0)
+       and (google_media_players | count > 0) }}
   previous_volumes: >
     {% set ns = namespace(items=[]) %}
     {% for player in target_players %}
@@ -280,11 +275,12 @@ conditions:
     value_template: "{{ target_players | count > 0 }}"
 
 actions:
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ output_system == 'google' }}"
-        sequence:
+  - parallel:
+      - sequence:
+          - if:
+              - condition: template
+                value_template: "{{ google_media_players | count > 0 }}"
+            then:
           - if:
               - condition: template
                 value_template: "{{ enable_gong | bool }}"
@@ -345,10 +341,11 @@ actions:
                       data:
                         media_player: "{{ repeat.item }}"
 
-      - conditions:
-          - condition: template
-            value_template: "{{ output_system == 'alexa' }}"
-        sequence:
+      - sequence:
+          - if:
+              - condition: template
+                value_template: "{{ alexa_media_players | count > 0 }}"
+            then:
           - if:
               - condition: template
                 value_template: "{{ enable_gong | bool }}"
@@ -395,17 +392,18 @@ actions:
                     type: announce
                     method: all
 
-      - conditions:
-          - condition: template
-            value_template: "{{ output_system == 'other' }}"
-        sequence:
+      - sequence:
+          - if:
+              - condition: template
+                value_template: "{{ effective_other_players | count > 0 }}"
+            then:
           - if:
               - condition: template
                 value_template: "{{ enable_gong | bool }}"
             then:
               - action: media_player.volume_set
                 target:
-                  entity_id: !input other_media_players
+                  entity_id: "{{ effective_other_players }}"
                 data:
                   volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
 
@@ -414,7 +412,7 @@ actions:
 
               - action: media_player.play_media
                 target:
-                  entity_id: !input other_media_players
+                  entity_id: "{{ effective_other_players }}"
                 data:
                   media_content_id: "{{ gong_url }}"
                   media_content_type: "audio/ogg"
@@ -428,7 +426,7 @@ actions:
             then:
               - action: media_player.volume_set
                 target:
-                  entity_id: !input other_media_players
+                  entity_id: "{{ effective_other_players }}"
                 data:
                   volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
 
@@ -436,7 +434,7 @@ actions:
                   milliseconds: 300
 
               - repeat:
-                  for_each: "{{ other_media_players }}"
+                  for_each: "{{ effective_other_players }}"
                   sequence:
                     - action: tts.speak
                       target:
@@ -476,7 +474,7 @@ actions:
 
   - if:
       - condition: template
-        value_template: "{{ output_system == 'google' and (close_google_cast | bool) }}"
+        value_template: "{{ (google_media_players | count > 0) and (close_google_cast | bool) }}"
     then:
       - action: media_player.turn_off
         target:
