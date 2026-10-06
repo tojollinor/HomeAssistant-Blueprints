@@ -26,14 +26,17 @@ Funktionen:
 - wenn deaktiviert, wird kein `language`-Parameter an die TTS-Engine gesendet
 - **Gong-Lautstärke anpassen** separat ein-/ausschaltbar
 - **Ansage-Lautstärke anpassen** separat ein-/ausschaltbar
-- **Wartezeit nach der Ansage** frei von 0 bis 60 Sekunden einstellbar; Standard 5 Sekunden
+- **Wartezeit nach der Ansage** frei von 0 bis 60 Sekunden einstellbar; Standard 3 Sekunden
 - Gong- und Ansagelautstärke getrennt einstellbar
 - wenn eine Lautstärkeanpassung deaktiviert ist, bleibt die aktuelle Gerätelautstärke unverändert
 - **Vorherige Lautstärke wiederherstellen** bleibt als eigener Schalter im Abschnitt Abschluss
-- optionaler Live-Kamerastream auf Google/Nest Hubs über `camera.play_stream`
-- Kamera und Kamera-Anzeigedauer frei auswählbar
+- optionale Kameraausgabe auf Google/Nest Hubs mit zwei Kamera-Methoden:
+  - **Home-Assistant-Kamera** über `camera.play_stream`
+  - **Frigate-Kamera (Advanced Camera Card)** über `cast.show_lovelace_view`
+- bei der Frigate-Methode werden Dashboard-Pfad und View-Pfad der vorbereiteten Advanced-Camera-Card-Ansicht angegeben
+- Kamera-Anzeigedauer gilt gemeinsam für beide Kamera-Methoden
 - ohne Kamera geht es nach der TTS-Wartezeit direkt zum Abschluss
-- mit Kamera beginnt danach der Stream und läuft für die eingestellte Kamera-Anzeigedauer
+- mit Kamera startet danach die gewählte Kamera-Methode und läuft für die eingestellte Kamera-Anzeigedauer
 - Google-Cast-Wiedergabe kann anschließend per `media_player.media_stop` automatisch beendet werden
 - relevante Service-Aufrufe sind fehlertolerant: ein Fehler bei Gong, TTS, Kamera, Lautstärke oder Cast-Cleanup soll den restlichen Ablauf nicht abbrechen
 - Wartezeiten und Lautstärken über die Blueprint-GUI einstellbar
@@ -58,13 +61,53 @@ Wenn der Blueprint bereits importiert ist, aktualisiere bzw. importiere ihn erne
 
 Die frühere Auswahl **Ausgabesystem** existiert nicht mehr. Welche Systeme verwendet werden, ergibt sich ausschließlich daraus, welche Geräte in den drei Zielgruppen ausgewählt sind. Dadurch können Google/Nest, Alexa und andere Lautsprecher auch gleichzeitig angesprochen werden.
 
-Nach dem Update sollte eine bestehende Automation einmal geöffnet, kontrolliert und gespeichert werden, insbesondere die Zielgeräte, die Lautstärke-Schalter, **Sprache an TTS übergeben**, **Wartezeit nach der Ansage** und die Kameraoptionen.
+Nach dem Update sollte eine bestehende Automation einmal geöffnet, kontrolliert und gespeichert werden, insbesondere die Zielgeräte, die Lautstärke-Schalter, **Sprache an TTS übergeben**, **Wartezeit nach der Ansage**, **Kamera-Methode** und die dazugehörigen Kameraoptionen.
 
 ## Google / Nest Hub
 
 Für Google/Nest wird standardmäßig `Doorbell-cheap-dingdong.ogg` von Wikimedia Commons verwendet. Die Aufnahme wurde vom Urheber in die Public Domain freigegeben; die URL kann in der Blueprint-GUI durch eine eigene Gong-Datei ersetzt werden.
 
-Der optionale Kamerastream wird mit dem Home-Assistant-Dienst `camera.play_stream` auf die ausgewählten Google/Nest-Hubs übertragen.
+Für die Kameraausgabe stehen zwei Methoden zur Verfügung:
+
+- **Home-Assistant-Kamera:** Eine normale `camera.*`-Entity wird mit `camera.play_stream` auf die ausgewählten Google/Nest-Hubs übertragen.
+- **Frigate-Kamera (Advanced Camera Card):** Statt die Frigate-`camera.*`-Entity direkt zu streamen, wird mit `cast.show_lovelace_view` eine vorbereitete Dashboard-View mit der Advanced Camera Card auf den Hub gecastet. Das ist besonders für Frigate/go2rtc-Setups sinnvoll, wenn die Card-Liveansicht bereits funktioniert, der direkte RTSP-Restream für Home Assistant aber absichtlich nicht erreichbar ist.
+
+Für die Frigate-Methode werden in der Blueprint **Dashboard-Pfad** und **View-Pfad** eingetragen.
+
+
+### Frigate / Advanced Camera Card einrichten
+
+Für die Kamera-Methode **Frigate-Kamera (Advanced Camera Card)** muss vorab eine eigene Dashboard-View angelegt werden, die nur bzw. hauptsächlich die gewünschte Advanced Camera Card enthält.
+
+Beispiel für die in diesem Projekt getestete Kamera `cam_backdoor`:
+
+```yaml
+type: custom:advanced-camera-card
+cameras:
+  - camera_entity: camera.cam_backdoor
+    live_provider: go2rtc
+    go2rtc:
+      modes:
+        - mse
+    frigate:
+      camera_name: cam_backdoor
+live:
+  preload: true
+  controls:
+    builtin: false
+view:
+  default: live
+```
+
+Die bestehende normale Kamera-Karte darf natürlich umfangreicher bleiben. Für den Cast ist eine möglichst schlanke View meist übersichtlicher.
+
+Beispiel:
+- Dashboard-URL: `/camera-cast/`
+- View-URL: `/camera-cast/backdoor`
+- Blueprint **Dashboard-Pfad**: `camera-cast`
+- Blueprint **View-Pfad**: `backdoor`
+
+Die Blueprint castet dann diese View auf jeden ausgewählten Google/Nest Hub. Die Advanced Camera Card übernimmt innerhalb der View den bereits funktionierenden Frigate/go2rtc-Livepfad.
 
 ## Amazon Alexa (Beta)
 
