@@ -1,11 +1,11 @@
 blueprint:
-  name: "Türklingel – Gong & Ansage auf Google/Nest oder Alexa"
+  name: "Türklingel – Gong, Ansage & Kamera"
   description: >
     Spielt bei einem Klingeldruck optional einen Gong und/oder eine Sprachausgabe
-    auf mehreren Lautsprechern/Displays ab. Die Ausgabelautstärke wird nur für
-    die Klingelaktion gesetzt und anschließend auf den vorherigen Wert
-    zurückgestellt. Google/Nest ist getestet; Amazon Alexa ist als Beta
-    vorbereitet und benötigt Alexa Media Player.
+    auf mehreren Lautsprechern oder Displays ab. Für Google/Nest kann zusätzlich
+    ein Kamerastream angezeigt werden. Die Ausgabelautstärke wird nur für die
+    Klingelaktion gesetzt und anschließend auf den vorherigen Wert zurückgestellt.
+    Amazon Alexa und andere Lautsprecher sind als Beta gekennzeichnet.
   domain: automation
   author: tojollinor
   source_url: https://github.com/tojollinor/HomeAssistant-Blueprints/blob/main/blueprints/automation/doorbell_chime_announcement.yaml
@@ -14,7 +14,7 @@ blueprint:
 
   input:
     basic:
-      name: "Auslöser & Ausgabegeräte"
+      name: "Auslöser & Ausgabesystem"
       icon: mdi:doorbell-video
       input:
         doorbell_sensor:
@@ -27,22 +27,55 @@ blueprint:
 
         output_system:
           name: Ausgabesystem
-          description: Google/Nest ist getestet. Alexa ist vorbereitet, aber noch ungetestet.
           default: google
           selector:
             select:
               options:
-                - label: "Google / Nest Hub (getestet)"
+                - label: "Google / Nest Hub"
                   value: google
-                - label: "Amazon Alexa (Beta, ungetestet)"
+                - label: "Amazon Alexa (Beta)"
                   value: alexa
+                - label: "Andere Lautsprecher (Beta)"
+                  value: other
 
-        media_players:
-          name: Lautsprecher / Displays
-          description: Ein oder mehrere Media-Player für Gong und Ansage.
+    players:
+      name: "Lautsprecher / Displays"
+      icon: mdi:speaker-multiple
+      description: >
+        Nur das Feld passend zum oben gewählten Ausgabesystem muss befüllt werden.
+      input:
+        google_media_players:
+          name: Google / Nest Hub
+          description: Zeigt nur Media-Player der Google-Cast-Integration.
+          default: []
           selector:
             entity:
               multiple: true
+              reorder: true
+              filter:
+                - domain: media_player
+                  integration: cast
+
+        alexa_media_players:
+          name: Amazon Alexa (Beta)
+          description: Zeigt nur Media-Player der Alexa-Media-Player-Integration.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              reorder: true
+              filter:
+                - domain: media_player
+                  integration: alexa_media
+
+        other_media_players:
+          name: Andere Lautsprecher (Beta)
+          description: Allgemeine Media-Player-Auswahl für weitere Lautsprecher und Displays.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              reorder: true
               filter:
                 - domain: media_player
 
@@ -70,7 +103,7 @@ blueprint:
 
         gong_wait:
           name: Pause nach dem Gong
-          description: Zeit bis zur Sprachausgabe. Bei langen oder eigenen Gong-Dateien entsprechend erhöhen.
+          description: Zeit bis zur Sprachausgabe.
           default: 2.5
           selector:
             number:
@@ -80,9 +113,9 @@ blueprint:
               unit_of_measurement: s
               mode: slider
 
-        google_gong_url:
-          name: Google/Nest Gong-URL
-          description: HTTPS-Adresse der Audiodatei. Kann durch eine eigene Datei ersetzt werden.
+        gong_url:
+          name: Gong-URL für Google / andere Lautsprecher
+          description: HTTPS-Adresse der Audiodatei. Kann durch eine eigene Gong-Datei ersetzt werden.
           default: "https://upload.wikimedia.org/wikipedia/commons/9/90/Doorbell-cheap-dingdong.ogg"
           selector:
             text:
@@ -98,8 +131,8 @@ blueprint:
             boolean:
 
         tts_entity:
-          name: TTS-Engine für Google/Nest
-          description: Wird nur bei Google/Nest verwendet, z. B. Google Translate TTS.
+          name: TTS-Engine
+          description: Für Google/Nest und andere Lautsprecher, z. B. Google Translate TTS.
           selector:
             entity:
               filter:
@@ -113,7 +146,7 @@ blueprint:
               multiline: false
 
         tts_language:
-          name: TTS-Sprache für Google/Nest
+          name: TTS-Sprache
           description: Für Google Translate TTS z. B. "de".
           default: "de"
           selector:
@@ -131,13 +164,49 @@ blueprint:
               unit_of_measurement: "%"
               mode: slider
 
+    camera:
+      name: "Kamerabild auf Google / Nest Hub"
+      icon: mdi:cctv
+      description: >
+        Optionaler Live-Stream nach Gong und Ansage. Die Kameraausgabe wird derzeit
+        nur im Modus Google / Nest Hub verwendet.
+      input:
+        enable_camera:
+          name: Kamerabild anzeigen
+          default: false
+          selector:
+            boolean:
+
+        camera_entities:
+          name: Kamera
+          description: Eine Kamera auswählen. Das Listenformat erlaubt, das Feld bei deaktivierter Kamera leer zu lassen.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: camera
+
+        camera_duration:
+          name: Kamera-Anzeigedauer
+          description: Dauer, die der Kamerastream auf den Google/Nest Hubs sichtbar bleibt.
+          default: 30
+          selector:
+            number:
+              min: 5
+              max: 180
+              step: 5
+              unit_of_measurement: s
+              mode: slider
+
     cleanup:
       name: Abschluss
       icon: mdi:restore
       input:
         final_wait:
-          name: Wartezeit vor dem Wiederherstellen
-          description: Zeit nach der Ansage, bevor Lautstärke und Cast-Session zurückgesetzt werden.
+          name: Wartezeit ohne Kamerastream
+          description: >
+            Zeit nach Gong/Ansage bis zum Wiederherstellen, wenn kein Google-Kamerastream läuft.
           default: 7
           selector:
             number:
@@ -155,26 +224,43 @@ blueprint:
 
         close_google_cast:
           name: Google-Cast-Session schließen
-          description: Wird nur im Google/Nest-Modus ausgeführt.
+          description: Wird nur im Modus Google / Nest Hub ausgeführt.
           default: true
           selector:
             boolean:
 
 variables:
   output_system: !input output_system
-  target_players: !input media_players
+  google_media_players: !input google_media_players
+  alexa_media_players: !input alexa_media_players
+  other_media_players: !input other_media_players
   enable_gong: !input enable_gong
   gong_volume: !input gong_volume
   gong_wait: !input gong_wait
-  google_gong_url: !input google_gong_url
+  gong_url: !input gong_url
   enable_speech: !input enable_speech
   tts_entity: !input tts_entity
   announcement_text: !input announcement_text
   tts_language: !input tts_language
   speech_volume: !input speech_volume
+  enable_camera: !input enable_camera
+  camera_entities: !input camera_entities
+  camera_duration: !input camera_duration
   final_wait: !input final_wait
   restore_volume: !input restore_volume
   close_google_cast: !input close_google_cast
+  target_players: >
+    {% if output_system == 'google' %}
+      {{ google_media_players }}
+    {% elif output_system == 'alexa' %}
+      {{ alexa_media_players }}
+    {% else %}
+      {{ other_media_players }}
+    {% endif %}
+  camera_active: >
+    {{ output_system == 'google'
+       and (enable_camera | bool)
+       and (camera_entities | count > 0) }}
   previous_volumes: >
     {% set ns = namespace(items=[]) %}
     {% for player in target_players %}
@@ -189,7 +275,9 @@ triggers:
     from: "off"
     to: "on"
 
-conditions: []
+conditions:
+  - condition: template
+    value_template: "{{ target_players | count > 0 }}"
 
 actions:
   - choose:
@@ -203,7 +291,7 @@ actions:
             then:
               - action: media_player.volume_set
                 target:
-                  entity_id: !input media_players
+                  entity_id: !input google_media_players
                 data:
                   volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
 
@@ -212,9 +300,9 @@ actions:
 
               - action: media_player.play_media
                 target:
-                  entity_id: !input media_players
+                  entity_id: !input google_media_players
                 data:
-                  media_content_id: "{{ google_gong_url }}"
+                  media_content_id: "{{ gong_url }}"
                   media_content_type: "audio/ogg"
 
               - delay:
@@ -226,7 +314,7 @@ actions:
             then:
               - action: media_player.volume_set
                 target:
-                  entity_id: !input media_players
+                  entity_id: !input google_media_players
                 data:
                   volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
 
@@ -234,7 +322,7 @@ actions:
                   milliseconds: 300
 
               - repeat:
-                  for_each: "{{ target_players }}"
+                  for_each: "{{ google_media_players }}"
                   sequence:
                     - action: tts.speak
                       target:
@@ -243,6 +331,19 @@ actions:
                         media_player_entity_id: "{{ repeat.item }}"
                         message: "{{ announcement_text }}"
                         language: "{{ tts_language }}"
+
+          - if:
+              - condition: template
+                value_template: "{{ camera_active | bool }}"
+            then:
+              - repeat:
+                  for_each: "{{ google_media_players }}"
+                  sequence:
+                    - action: camera.play_stream
+                      target:
+                        entity_id: "{{ camera_entities[0] }}"
+                      data:
+                        media_player: "{{ repeat.item }}"
 
       - conditions:
           - condition: template
@@ -254,7 +355,7 @@ actions:
             then:
               - action: media_player.volume_set
                 target:
-                  entity_id: !input media_players
+                  entity_id: !input alexa_media_players
                 data:
                   volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
 
@@ -263,7 +364,7 @@ actions:
 
               - action: notify.alexa_media
                 data:
-                  target: "{{ target_players }}"
+                  target: !input alexa_media_players
                   message: >-
                     <speak><audio src="soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01"/></speak>
                   data:
@@ -279,7 +380,7 @@ actions:
             then:
               - action: media_player.volume_set
                 target:
-                  entity_id: !input media_players
+                  entity_id: !input alexa_media_players
                 data:
                   volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
 
@@ -288,14 +389,70 @@ actions:
 
               - action: notify.alexa_media
                 data:
-                  target: "{{ target_players }}"
+                  target: !input alexa_media_players
                   message: "{{ announcement_text }}"
                   data:
                     type: announce
                     method: all
 
+      - conditions:
+          - condition: template
+            value_template: "{{ output_system == 'other' }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ enable_gong | bool }}"
+            then:
+              - action: media_player.volume_set
+                target:
+                  entity_id: !input other_media_players
+                data:
+                  volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+
+              - delay:
+                  milliseconds: 300
+
+              - action: media_player.play_media
+                target:
+                  entity_id: !input other_media_players
+                data:
+                  media_content_id: "{{ gong_url }}"
+                  media_content_type: "audio/ogg"
+
+              - delay:
+                  seconds: "{{ gong_wait | float(2.5) }}"
+
+          - if:
+              - condition: template
+                value_template: "{{ enable_speech | bool }}"
+            then:
+              - action: media_player.volume_set
+                target:
+                  entity_id: !input other_media_players
+                data:
+                  volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
+
+              - delay:
+                  milliseconds: 300
+
+              - repeat:
+                  for_each: "{{ other_media_players }}"
+                  sequence:
+                    - action: tts.speak
+                      target:
+                        entity_id: "{{ tts_entity }}"
+                      data:
+                        media_player_entity_id: "{{ repeat.item }}"
+                        message: "{{ announcement_text }}"
+                        language: "{{ tts_language }}"
+
   - delay:
-      seconds: "{{ final_wait | float(7) }}"
+      seconds: >
+        {% if camera_active | bool %}
+          {{ camera_duration | float(30) }}
+        {% else %}
+          {{ final_wait | float(7) }}
+        {% endif %}
 
   - if:
       - condition: template
@@ -323,7 +480,7 @@ actions:
     then:
       - action: media_player.turn_off
         target:
-          entity_id: !input media_players
+          entity_id: !input google_media_players
 
 mode: queued
 max: 3
