@@ -22,6 +22,8 @@ Funktionen:
 - doppelt gewählte Geräte werden nicht doppelt angesteuert
 - optionaler Zweiton-Gong
 - optionale Sprachausgabe
+- **Sprache an TTS übergeben** separat ein-/ausschaltbar
+- wenn deaktiviert, wird kein `language`-Parameter an die TTS-Engine gesendet
 - **Gong-Lautstärke anpassen** separat ein-/ausschaltbar
 - **Ansage-Lautstärke anpassen** separat ein-/ausschaltbar
 - Gong- und Ansagelautstärke getrennt einstellbar
@@ -30,6 +32,7 @@ Funktionen:
 - optionaler Live-Kamerastream auf Google/Nest Hubs über `camera.play_stream`
 - Kamera und Kamera-Anzeigedauer frei auswählbar
 - Google-Cast-Session kann anschließend automatisch beendet werden
+- relevante Service-Aufrufe sind fehlertolerant: ein Fehler bei Gong, TTS, Kamera, Lautstärke oder Cast-Cleanup soll den restlichen Ablauf nicht abbrechen
 - Wartezeiten und Lautstärken über die Blueprint-GUI einstellbar
 
 ### Import in Home Assistant
@@ -52,7 +55,7 @@ Wenn der Blueprint bereits importiert ist, aktualisiere bzw. importiere ihn erne
 
 Die frühere Auswahl **Ausgabesystem** existiert nicht mehr. Welche Systeme verwendet werden, ergibt sich ausschließlich daraus, welche Geräte in den drei Zielgruppen ausgewählt sind. Dadurch können Google/Nest, Alexa und andere Lautsprecher auch gleichzeitig angesprochen werden.
 
-Nach dem Update sollte eine bestehende Automation einmal geöffnet, kontrolliert und gespeichert werden, insbesondere die Zielgeräte, die beiden neuen Lautstärke-Schalter und die Kameraoptionen.
+Nach dem Update sollte eine bestehende Automation einmal geöffnet, kontrolliert und gespeichert werden, insbesondere die Zielgeräte, die Lautstärke-Schalter, **Sprache an TTS übergeben** und die Kameraoptionen.
 
 ## Google / Nest Hub
 
