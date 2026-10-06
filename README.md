@@ -11,17 +11,22 @@ Datei: `blueprints/automation/doorbell_chime_announcement.yaml`
 Funktionen:
 
 - Klingeldruck über einen `binary_sensor` als Trigger
-- Ausgabesystem per Dropdown:
+- drei unabhängig nutzbare Zielgruppen:
   - **Google / Nest Hub**
   - **Amazon Alexa (Beta)**
   - **Andere Lautsprecher (Beta)**
+- mehrere Zielgruppen können gleichzeitig verwendet werden
+- leere Zielgruppen werden automatisch übersprungen
 - Google-Geräteauswahl auf `media_player` der Integration `cast` gefiltert
 - Alexa-Geräteauswahl auf `media_player` der Integration `alexa_media` gefiltert
-- beliebig mehrere Zielgeräte auswählbar
+- doppelt gewählte Geräte werden nicht doppelt angesteuert
 - optionaler Zweiton-Gong
 - optionale Sprachausgabe
+- **Gong-Lautstärke anpassen** separat ein-/ausschaltbar
+- **Ansage-Lautstärke anpassen** separat ein-/ausschaltbar
 - Gong- und Ansagelautstärke getrennt einstellbar
-- ursprüngliche Lautstärke der Geräte wird nach der Ausgabe wiederhergestellt
+- wenn eine Lautstärkeanpassung deaktiviert ist, bleibt die aktuelle Gerätelautstärke unverändert
+- **Vorherige Lautstärke wiederherstellen** bleibt als eigener Schalter im Abschnitt Abschluss
 - optionaler Live-Kamerastream auf Google/Nest Hubs über `camera.play_stream`
 - Kamera und Kamera-Anzeigedauer frei auswählbar
 - Google-Cast-Session kann anschließend automatisch beendet werden
@@ -43,13 +48,17 @@ https://github.com/tojollinor/HomeAssistant-Blueprints/blob/main/blueprints/auto
 
 ### Aktualisieren
 
-Wenn der Blueprint bereits importiert ist, in Home Assistant unter **Einstellungen → Automationen & Szenen → Blaupausen** den Blueprint öffnen und die Aktualisierung/erneuten Import über die ursprüngliche Quell-URL durchführen. Bestehende Automationen sollten danach auf den aktualisierten Blueprint zeigen; neue Eingaben wie Kamera oder getrennte Gerätefelder müssen gegebenenfalls einmal in der Automation konfiguriert werden.
+Wenn der Blueprint bereits importiert ist, aktualisiere bzw. importiere ihn erneut über dieselbe Quell-URL.
+
+Die frühere Auswahl **Ausgabesystem** existiert nicht mehr. Welche Systeme verwendet werden, ergibt sich ausschließlich daraus, welche Geräte in den drei Zielgruppen ausgewählt sind. Dadurch können Google/Nest, Alexa und andere Lautsprecher auch gleichzeitig angesprochen werden.
+
+Nach dem Update sollte eine bestehende Automation einmal geöffnet, kontrolliert und gespeichert werden, insbesondere die Zielgeräte, die beiden neuen Lautstärke-Schalter und die Kameraoptionen.
 
 ## Google / Nest Hub
 
 Für Google/Nest wird standardmäßig `Doorbell-cheap-dingdong.ogg` von Wikimedia Commons verwendet. Die Aufnahme wurde vom Urheber in die Public Domain freigegeben; die URL kann in der Blueprint-GUI durch eine eigene Gong-Datei ersetzt werden.
 
-Der optionale Kamerastream wird mit dem offiziellen Home-Assistant-Dienst `camera.play_stream` auf die ausgewählten Google/Nest-Hubs übertragen.
+Der optionale Kamerastream wird mit dem Home-Assistant-Dienst `camera.play_stream` auf die ausgewählten Google/Nest-Hubs übertragen.
 
 ## Amazon Alexa (Beta)
 
