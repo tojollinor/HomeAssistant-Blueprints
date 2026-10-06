@@ -2,10 +2,11 @@ blueprint:
   name: "Türklingel – Gong, Ansage & Kamera"
   description: >
     Spielt bei einem Klingeldruck optional einen Gong und/oder eine Sprachausgabe
-    auf mehreren Lautsprechern oder Displays ab. Für Google/Nest kann zusätzlich
-    ein Kamerastream angezeigt werden. Die Ausgabelautstärke wird nur für die
-    Klingelaktion gesetzt und anschließend auf den vorherigen Wert zurückgestellt.
-    Amazon Alexa und andere Lautsprecher sind als Beta gekennzeichnet.
+    auf mehreren Lautsprechern oder Displays ab. Google/Nest, Amazon Alexa (Beta)
+    und andere Lautsprecher (Beta) können gleichzeitig verwendet werden.
+    Für Google/Nest kann zusätzlich ein Kamerastream angezeigt werden.
+    Die Gong- und Ansagelautstärke kann jeweils optional angepasst und anschließend
+    auf den vorherigen Wert zurückgestellt werden.
   domain: automation
   author: tojollinor
   source_url: https://github.com/tojollinor/HomeAssistant-Blueprints/blob/main/blueprints/automation/doorbell_chime_announcement.yaml
@@ -30,7 +31,7 @@ blueprint:
       icon: mdi:speaker-multiple
       description: >
         Alle gewünschten Zielgruppen können gleichzeitig befüllt werden.
-        Leere Gruppen werden einfach übersprungen.
+        Leere Gruppen werden automatisch übersprungen.
       input:
         google_media_players:
           name: Google / Nest Hub
@@ -77,9 +78,16 @@ blueprint:
           selector:
             boolean:
 
+        adjust_gong_volume:
+          name: Gong-Lautstärke anpassen
+          description: Wenn deaktiviert, bleibt die aktuelle Lautstärke der Zielgeräte unverändert.
+          default: true
+          selector:
+            boolean:
+
         gong_volume:
           name: Gong-Lautstärke
-          description: Nur während des Gongs. Danach wird die vorherige Lautstärke wiederhergestellt.
+          description: Wird nur verwendet, wenn "Gong-Lautstärke anpassen" aktiviert ist.
           default: 60
           selector:
             number:
@@ -140,9 +148,16 @@ blueprint:
           selector:
             text:
 
+        adjust_speech_volume:
+          name: Ansage-Lautstärke anpassen
+          description: Wenn deaktiviert, bleibt die aktuelle Lautstärke der Zielgeräte unverändert.
+          default: true
+          selector:
+            boolean:
+
         speech_volume:
           name: Ansage-Lautstärke
-          description: Nur während der Sprachausgabe.
+          description: Wird nur verwendet, wenn "Ansage-Lautstärke anpassen" aktiviert ist.
           default: 60
           selector:
             number:
@@ -156,8 +171,8 @@ blueprint:
       name: "Kamerabild auf Google / Nest Hub"
       icon: mdi:cctv
       description: >
-        Optionaler Live-Stream nach Gong und Ansage. Die Kameraausgabe wird derzeit
-        nur für ausgewählte Google / Nest Hubs verwendet.
+        Optionaler Live-Stream nach Gong und Ansage. Die Kameraausgabe wird nur
+        auf den ausgewählten Google / Nest Hubs verwendet.
       input:
         enable_camera:
           name: Kamerabild anzeigen
@@ -194,7 +209,7 @@ blueprint:
         final_wait:
           name: Wartezeit ohne Kamerastream
           description: >
-            Zeit nach Gong/Ansage bis zum Wiederherstellen, wenn kein Google-Kamerastream läuft.
+            Zeit nach Gong/Ansage bis zum Abschluss, wenn kein Google-Kamerastream läuft.
           default: 7
           selector:
             number:
@@ -206,6 +221,9 @@ blueprint:
 
         restore_volume:
           name: Vorherige Lautstärke wiederherstellen
+          description: >
+            Stellt die vor dem Klingeln gespeicherte Lautstärke wieder her, sofern
+            Gong- oder Ansage-Lautstärke angepasst wurde.
           default: true
           selector:
             boolean:
@@ -222,6 +240,7 @@ variables:
   alexa_media_players: !input alexa_media_players
   other_media_players: !input other_media_players
   enable_gong: !input enable_gong
+  adjust_gong_volume: !input adjust_gong_volume
   gong_volume: !input gong_volume
   gong_wait: !input gong_wait
   gong_url: !input gong_url
@@ -229,6 +248,7 @@ variables:
   tts_entity: !input tts_entity
   announcement_text: !input announcement_text
   tts_language: !input tts_language
+  adjust_speech_volume: !input adjust_speech_volume
   speech_volume: !input speech_volume
   enable_camera: !input enable_camera
   camera_entities: !input camera_entities
@@ -236,6 +256,7 @@ variables:
   final_wait: !input final_wait
   restore_volume: !input restore_volume
   close_google_cast: !input close_google_cast
+
   effective_other_players: >
     {% set ns = namespace(items=[]) %}
     {% for player in other_media_players %}
@@ -244,6 +265,7 @@ variables:
       {% endif %}
     {% endfor %}
     {{ ns.items }}
+
   target_players: >
     {% set ns = namespace(items=[]) %}
     {% for player in google_media_players + alexa_media_players + other_media_players %}
@@ -252,10 +274,16 @@ variables:
       {% endif %}
     {% endfor %}
     {{ ns.items }}
+
   camera_active: >
     {{ (enable_camera | bool)
        and (camera_entities | count > 0)
        and (google_media_players | count > 0) }}
+
+  volume_was_adjusted: >
+    {{ ((enable_gong | bool) and (adjust_gong_volume | bool))
+       or ((enable_speech | bool) and (adjust_speech_volume | bool)) }}
+
   previous_volumes: >
     {% set ns = namespace(items=[]) %}
     {% for player in target_players %}
@@ -281,168 +309,183 @@ actions:
               - condition: template
                 value_template: "{{ google_media_players | count > 0 }}"
             then:
-          - if:
-              - condition: template
-                value_template: "{{ enable_gong | bool }}"
-            then:
-              - action: media_player.volume_set
-                target:
-                  entity_id: !input google_media_players
-                data:
-                  volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ (enable_gong | bool) and (adjust_gong_volume | bool) }}"
+                then:
+                  - action: media_player.volume_set
+                    target:
+                      entity_id: !input google_media_players
+                    data:
+                      volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+                  - delay:
+                      milliseconds: 300
 
-              - delay:
-                  milliseconds: 300
+              - if:
+                  - condition: template
+                    value_template: "{{ enable_gong | bool }}"
+                then:
+                  - action: media_player.play_media
+                    target:
+                      entity_id: !input google_media_players
+                    data:
+                      media_content_id: "{{ gong_url }}"
+                      media_content_type: "audio/ogg"
+                  - delay:
+                      seconds: "{{ gong_wait | float(2.5) }}"
 
-              - action: media_player.play_media
-                target:
-                  entity_id: !input google_media_players
-                data:
-                  media_content_id: "{{ gong_url }}"
-                  media_content_type: "audio/ogg"
+              - if:
+                  - condition: template
+                    value_template: "{{ (enable_speech | bool) and (adjust_speech_volume | bool) }}"
+                then:
+                  - action: media_player.volume_set
+                    target:
+                      entity_id: !input google_media_players
+                    data:
+                      volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
+                  - delay:
+                      milliseconds: 300
 
-              - delay:
-                  seconds: "{{ gong_wait | float(2.5) }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ enable_speech | bool }}"
+                then:
+                  - repeat:
+                      for_each: "{{ google_media_players }}"
+                      sequence:
+                        - action: tts.speak
+                          target:
+                            entity_id: "{{ tts_entity }}"
+                          data:
+                            media_player_entity_id: "{{ repeat.item }}"
+                            message: "{{ announcement_text }}"
+                            language: "{{ tts_language }}"
 
-          - if:
-              - condition: template
-                value_template: "{{ enable_speech | bool }}"
-            then:
-              - action: media_player.volume_set
-                target:
-                  entity_id: !input google_media_players
-                data:
-                  volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
-
-              - delay:
-                  milliseconds: 300
-
-              - repeat:
-                  for_each: "{{ google_media_players }}"
-                  sequence:
-                    - action: tts.speak
-                      target:
-                        entity_id: "{{ tts_entity }}"
-                      data:
-                        media_player_entity_id: "{{ repeat.item }}"
-                        message: "{{ announcement_text }}"
-                        language: "{{ tts_language }}"
-
-          - if:
-              - condition: template
-                value_template: "{{ camera_active | bool }}"
-            then:
-              - repeat:
-                  for_each: "{{ google_media_players }}"
-                  sequence:
-                    - action: camera.play_stream
-                      target:
-                        entity_id: "{{ camera_entities[0] }}"
-                      data:
-                        media_player: "{{ repeat.item }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ camera_active | bool }}"
+                then:
+                  - repeat:
+                      for_each: "{{ google_media_players }}"
+                      sequence:
+                        - action: camera.play_stream
+                          target:
+                            entity_id: "{{ camera_entities[0] }}"
+                          data:
+                            media_player: "{{ repeat.item }}"
 
       - sequence:
           - if:
               - condition: template
                 value_template: "{{ alexa_media_players | count > 0 }}"
             then:
-          - if:
-              - condition: template
-                value_template: "{{ enable_gong | bool }}"
-            then:
-              - action: media_player.volume_set
-                target:
-                  entity_id: !input alexa_media_players
-                data:
-                  volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ (enable_gong | bool) and (adjust_gong_volume | bool) }}"
+                then:
+                  - action: media_player.volume_set
+                    target:
+                      entity_id: !input alexa_media_players
+                    data:
+                      volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+                  - delay:
+                      milliseconds: 300
 
-              - delay:
-                  milliseconds: 300
+              - if:
+                  - condition: template
+                    value_template: "{{ enable_gong | bool }}"
+                then:
+                  - action: notify.alexa_media
+                    data:
+                      target: !input alexa_media_players
+                      message: >-
+                        <speak><audio src="soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01"/></speak>
+                      data:
+                        type: announce
+                        method: all
+                  - delay:
+                      seconds: "{{ gong_wait | float(2.5) }}"
 
-              - action: notify.alexa_media
-                data:
-                  target: !input alexa_media_players
-                  message: >-
-                    <speak><audio src="soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01"/></speak>
-                  data:
-                    type: announce
-                    method: all
+              - if:
+                  - condition: template
+                    value_template: "{{ (enable_speech | bool) and (adjust_speech_volume | bool) }}"
+                then:
+                  - action: media_player.volume_set
+                    target:
+                      entity_id: !input alexa_media_players
+                    data:
+                      volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
+                  - delay:
+                      milliseconds: 300
 
-              - delay:
-                  seconds: "{{ gong_wait | float(2.5) }}"
-
-          - if:
-              - condition: template
-                value_template: "{{ enable_speech | bool }}"
-            then:
-              - action: media_player.volume_set
-                target:
-                  entity_id: !input alexa_media_players
-                data:
-                  volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
-
-              - delay:
-                  milliseconds: 300
-
-              - action: notify.alexa_media
-                data:
-                  target: !input alexa_media_players
-                  message: "{{ announcement_text }}"
-                  data:
-                    type: announce
-                    method: all
+              - if:
+                  - condition: template
+                    value_template: "{{ enable_speech | bool }}"
+                then:
+                  - action: notify.alexa_media
+                    data:
+                      target: !input alexa_media_players
+                      message: "{{ announcement_text }}"
+                      data:
+                        type: announce
+                        method: all
 
       - sequence:
           - if:
               - condition: template
                 value_template: "{{ effective_other_players | count > 0 }}"
             then:
-          - if:
-              - condition: template
-                value_template: "{{ enable_gong | bool }}"
-            then:
-              - action: media_player.volume_set
-                target:
-                  entity_id: "{{ effective_other_players }}"
-                data:
-                  volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ (enable_gong | bool) and (adjust_gong_volume | bool) }}"
+                then:
+                  - action: media_player.volume_set
+                    target:
+                      entity_id: "{{ effective_other_players }}"
+                    data:
+                      volume_level: "{{ (gong_volume | float(60) / 100) | round(2) }}"
+                  - delay:
+                      milliseconds: 300
 
-              - delay:
-                  milliseconds: 300
+              - if:
+                  - condition: template
+                    value_template: "{{ enable_gong | bool }}"
+                then:
+                  - action: media_player.play_media
+                    target:
+                      entity_id: "{{ effective_other_players }}"
+                    data:
+                      media_content_id: "{{ gong_url }}"
+                      media_content_type: "audio/ogg"
+                  - delay:
+                      seconds: "{{ gong_wait | float(2.5) }}"
 
-              - action: media_player.play_media
-                target:
-                  entity_id: "{{ effective_other_players }}"
-                data:
-                  media_content_id: "{{ gong_url }}"
-                  media_content_type: "audio/ogg"
+              - if:
+                  - condition: template
+                    value_template: "{{ (enable_speech | bool) and (adjust_speech_volume | bool) }}"
+                then:
+                  - action: media_player.volume_set
+                    target:
+                      entity_id: "{{ effective_other_players }}"
+                    data:
+                      volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
+                  - delay:
+                      milliseconds: 300
 
-              - delay:
-                  seconds: "{{ gong_wait | float(2.5) }}"
-
-          - if:
-              - condition: template
-                value_template: "{{ enable_speech | bool }}"
-            then:
-              - action: media_player.volume_set
-                target:
-                  entity_id: "{{ effective_other_players }}"
-                data:
-                  volume_level: "{{ (speech_volume | float(60) / 100) | round(2) }}"
-
-              - delay:
-                  milliseconds: 300
-
-              - repeat:
-                  for_each: "{{ effective_other_players }}"
-                  sequence:
-                    - action: tts.speak
-                      target:
-                        entity_id: "{{ tts_entity }}"
-                      data:
-                        media_player_entity_id: "{{ repeat.item }}"
-                        message: "{{ announcement_text }}"
-                        language: "{{ tts_language }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ enable_speech | bool }}"
+                then:
+                  - repeat:
+                      for_each: "{{ effective_other_players }}"
+                      sequence:
+                        - action: tts.speak
+                          target:
+                            entity_id: "{{ tts_entity }}"
+                          data:
+                            media_player_entity_id: "{{ repeat.item }}"
+                            message: "{{ announcement_text }}"
+                            language: "{{ tts_language }}"
 
   - delay:
       seconds: >
@@ -454,7 +497,7 @@ actions:
 
   - if:
       - condition: template
-        value_template: "{{ restore_volume | bool }}"
+        value_template: "{{ (restore_volume | bool) and (volume_was_adjusted | bool) }}"
     then:
       - repeat:
           for_each: "{{ previous_volumes | from_json }}"
