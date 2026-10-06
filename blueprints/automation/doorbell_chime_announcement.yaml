@@ -136,7 +136,7 @@ blueprint:
 
         announcement_text:
           name: Ansagetext
-          default: "Jemand ist an der Hintertür."
+          default: "Jemand ist an der Haustür."
           selector:
             text:
               multiline: false
@@ -161,8 +161,8 @@ blueprint:
           name: Wartezeit nach der Ansage
           description: >
             Zeit nach dem Start der TTS-Ausgabe, bevor die nächste Funktion ausgeführt wird.
-            Bei Google/Nest startet danach gegebenenfalls der Kamerastream.
-          default: 5
+            Bei Google/Nest startet danach gegebenenfalls die Kameraausgabe.
+          default: 3
           selector:
             number:
               min: 0
@@ -203,15 +203,50 @@ blueprint:
           selector:
             boolean:
 
+        camera_method:
+          name: Kamera-Methode
+          description: >
+            Home-Assistant-Kamera nutzt camera.play_stream. Frigate / Advanced Camera Card
+            castet eine vorbereitete Dashboard-Ansicht mit der Advanced Camera Card.
+          default: home_assistant
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - label: Home-Assistant-Kamera
+                  value: home_assistant
+                - label: Frigate-Kamera (Advanced Camera Card)
+                  value: frigate
+
         camera_entities:
-          name: Kamera
-          description: Eine Kamera auswählen. Das Listenformat erlaubt, das Feld bei deaktivierter Kamera leer zu lassen.
+          name: Home-Assistant-Kamera
+          description: >
+            Nur bei Kamera-Methode "Home-Assistant-Kamera" verwendet.
+            Eine Kamera auswählen. Das Listenformat erlaubt, das Feld bei deaktivierter Kamera leer zu lassen.
           default: []
           selector:
             entity:
               multiple: true
               filter:
                 - domain: camera
+
+        frigate_dashboard_path:
+          name: Frigate – Dashboard-Pfad
+          description: >
+            Nur bei "Frigate-Kamera (Advanced Camera Card)" verwendet.
+            URL-Pfad des Dashboards mit der vorbereiteten Advanced-Camera-Card-Ansicht.
+          default: "lovelace"
+          selector:
+            text:
+
+        frigate_view_path:
+          name: Frigate – View-Pfad
+          description: >
+            Nur bei "Frigate-Kamera (Advanced Camera Card)" verwendet.
+            URL-Pfad der View, die auf den Google/Nest Hub gecastet werden soll.
+          default: ""
+          selector:
+            text:
 
         camera_duration:
           name: Kamera-Anzeigedauer
@@ -263,7 +298,10 @@ variables:
   adjust_speech_volume: !input adjust_speech_volume
   speech_volume: !input speech_volume
   enable_camera: !input enable_camera
+  camera_method: !input camera_method
   camera_entities: !input camera_entities
+  frigate_dashboard_path: !input frigate_dashboard_path
+  frigate_view_path: !input frigate_view_path
   camera_duration: !input camera_duration
   restore_volume: !input restore_volume
   close_google_cast: !input close_google_cast
@@ -286,10 +324,20 @@ variables:
     {% endfor %}
     {{ ns.items }}
 
-  camera_active: >
+  standard_camera_active: >
     {{ (enable_camera | bool)
+       and (camera_method == 'home_assistant')
        and (camera_entities | count > 0)
        and (google_media_players | count > 0) }}
+
+  frigate_camera_active: >
+    {{ (enable_camera | bool)
+       and (camera_method == 'frigate')
+       and (frigate_view_path | trim | length > 0)
+       and (google_media_players | count > 0) }}
+
+  camera_active: >
+    {{ (standard_camera_active | bool) or (frigate_camera_active | bool) }}
 
   volume_was_adjusted: >
     {{ ((enable_gong | bool) and (adjust_gong_volume | bool))
@@ -389,11 +437,11 @@ actions:
                                 message: "{{ announcement_text }}"
 
                   - delay:
-                      seconds: "{{ tts_wait | float(5) }}"
+                      seconds: "{{ tts_wait | float(3) }}"
 
               - if:
                   - condition: template
-                    value_template: "{{ camera_active | bool }}"
+                    value_template: "{{ standard_camera_active | bool }}"
                 then:
                   - repeat:
                       for_each: "{{ google_media_players }}"
@@ -405,6 +453,24 @@ actions:
                           data:
                             media_player: "{{ repeat.item }}"
 
+              - if:
+                  - condition: template
+                    value_template: "{{ frigate_camera_active | bool }}"
+                then:
+                  - repeat:
+                      for_each: "{{ google_media_players }}"
+                      sequence:
+                        - action: cast.show_lovelace_view
+                          continue_on_error: true
+                          data:
+                            entity_id: "{{ repeat.item }}"
+                            dashboard_path: "{{ frigate_dashboard_path }}"
+                            view_path: "{{ frigate_view_path }}"
+
+              - if:
+                  - condition: template
+                    value_template: "{{ camera_active | bool }}"
+                then:
                   - delay:
                       seconds: "{{ camera_duration | float(30) }}"
 
@@ -469,7 +535,7 @@ actions:
                         method: all
 
                   - delay:
-                      seconds: "{{ tts_wait | float(5) }}"
+                      seconds: "{{ tts_wait | float(3) }}"
 
       - sequence:
           - if:
@@ -545,7 +611,7 @@ actions:
                                 message: "{{ announcement_text }}"
 
                   - delay:
-                      seconds: "{{ tts_wait | float(5) }}"
+                      seconds: "{{ tts_wait | float(3) }}"
 
   - if:
       - condition: template
