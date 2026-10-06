@@ -26,6 +26,7 @@ Funktionen:
 - wenn deaktiviert, wird kein `language`-Parameter an die TTS-Engine gesendet
 - **Gong-Lautstärke anpassen** separat ein-/ausschaltbar
 - **Ansage-Lautstärke anpassen** separat ein-/ausschaltbar
+- **Wartezeit nach der Ansage** frei von 0 bis 60 Sekunden einstellbar; Standard 5 Sekunden
 - Gong- und Ansagelautstärke getrennt einstellbar
 - wenn eine Lautstärkeanpassung deaktiviert ist, bleibt die aktuelle Gerätelautstärke unverändert
 - **Vorherige Lautstärke wiederherstellen** bleibt als eigener Schalter im Abschnitt Abschluss
@@ -55,7 +56,7 @@ Wenn der Blueprint bereits importiert ist, aktualisiere bzw. importiere ihn erne
 
 Die frühere Auswahl **Ausgabesystem** existiert nicht mehr. Welche Systeme verwendet werden, ergibt sich ausschließlich daraus, welche Geräte in den drei Zielgruppen ausgewählt sind. Dadurch können Google/Nest, Alexa und andere Lautsprecher auch gleichzeitig angesprochen werden.
 
-Nach dem Update sollte eine bestehende Automation einmal geöffnet, kontrolliert und gespeichert werden, insbesondere die Zielgeräte, die Lautstärke-Schalter, **Sprache an TTS übergeben** und die Kameraoptionen.
+Nach dem Update sollte eine bestehende Automation einmal geöffnet, kontrolliert und gespeichert werden, insbesondere die Zielgeräte, die Lautstärke-Schalter, **Sprache an TTS übergeben**, **Wartezeit nach der Ansage** und die Kameraoptionen.
 
 ## Google / Nest Hub
 
