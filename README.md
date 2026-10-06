@@ -21,7 +21,6 @@ Funktionen:
 - Wartezeiten über die Blueprint-GUI einstellbar
 - ursprüngliche Lautstärke der Geräte wird nach der Ausgabe wiederhergestellt
 - Google-Cast-Session kann anschließend automatisch beendet werden
-- eigener Gong liegt unter `assets/doorbell_chime.wav`
 
 ### Import in Home Assistant
 
@@ -41,4 +40,4 @@ https://github.com/tojollinor/HomeAssistant-Blueprints/blob/main/blueprints/auto
 
 Die Alexa-Unterstützung verwendet **Alexa Media Player** und ist ausdrücklich als **Beta / ungetestet** markiert. Alexa Media Player verwendet eine inoffizielle Alexa-API und kann sich durch Änderungen auf Amazon-Seite verändern.
 
-Der Alexa-Gong verwendet den Alexa-Sound-Library-Effekt `amzn_sfx_doorbell_chime_01`. Für Google/Nest wird die mitgelieferte WAV-Datei über Google Cast abgespielt.
+Der Alexa-Gong verwendet den Alexa-Sound-Library-Effekt `amzn_sfx_doorbell_chime_01`. Für Google/Nest wird standardmäßig `Doorbell-cheap-dingdong.ogg` von Wikimedia Commons verwendet. Die Aufnahme wurde vom Urheber in die Public Domain freigegeben; die URL kann in der Blueprint-GUI durch eine eigene Gong-Datei ersetzt werden.
