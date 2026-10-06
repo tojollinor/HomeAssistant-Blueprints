@@ -83,7 +83,7 @@ blueprint:
         google_gong_url:
           name: Google/Nest Gong-URL
           description: HTTPS-Adresse der Audiodatei. Kann durch eine eigene Datei ersetzt werden.
-          default: "https://raw.githubusercontent.com/tojollinor/HomeAssistant-Blueprints/main/assets/doorbell_chime.wav"
+          default: "https://upload.wikimedia.org/wikipedia/commons/9/90/Doorbell-cheap-dingdong.ogg"
           selector:
             text:
 
@@ -215,7 +215,7 @@ actions:
                   entity_id: !input media_players
                 data:
                   media_content_id: "{{ google_gong_url }}"
-                  media_content_type: "audio/wav"
+                  media_content_type: "audio/ogg"
 
               - delay:
                   seconds: "{{ gong_wait | float(2.5) }}"
